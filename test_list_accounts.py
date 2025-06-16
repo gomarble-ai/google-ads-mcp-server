@@ -1,6 +1,0 @@
-access_token = "ya29.a0AW4Xtxg3y6i0N0U43WxDPPAOZXhSOYt3xDkiyCwbAb7rn-6hXM2wVjHYKi8gLvogyu2Gq-PLRKVdF0Hwx0xOXBTHs_CwEQzWRvpqjyiHtRLibkswGDRuEjwDmAbHTjIM5MrdG5k5TjOJHXZA2PgNSXnp5gL0BhGSgzksHf7FaCgYKATASARASFQHGX2MikSyOhNG0fdTzRauLcqkEow0175"
-
-from server import list_accounts
-
-acc = list_accounts(access_token)
-print(acc)

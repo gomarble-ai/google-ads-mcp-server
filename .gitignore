@@ -1,7 +1,10 @@
-# Environment and secrets
+# Environment
 .env
-client_secret_*.json
-client_secret.json
-/Users/marble-dev-01/workspace/google_ads_with_fastmcp/client_secret_138737274875-t2b5h27saqsgo9br1rt3td8ofuodnf5o.apps.googleusercontent.com.json
-credentials.json
+
+# Credentials and Tokens
+*.json
+
+# Python
+__pycache__/
+*.pyc
 .venv/

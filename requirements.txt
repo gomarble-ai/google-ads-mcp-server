@@ -1,5 +1,5 @@
-# FastMCP requirements
-fastmcp
+# FastMCP - Model Context Protocol framework
+fastmcp>=0.8.0
 
 # HTTP requests for API calls
 requests>=2.31.0
@@ -7,5 +7,13 @@ requests>=2.31.0
 # Environment configuration
 python-dotenv>=1.0.0
 
-# Additional dependencies
-typing-extensions>=4.0.0 
+# Type hints and annotations
+typing-extensions>=4.0.0
+
+# Google OAuth and Authentication
+google-auth>=2.23.0
+google-auth-oauthlib>=1.1.0
+google-auth-httplib2>=0.1.1
+
+# Additional web server capabilities
+urllib3>=2.0.0
