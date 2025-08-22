@@ -4,6 +4,8 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![FastMCP](https://img.shields.io/badge/FastMCP-v2.8.0-green.svg)](https://github.com/jlowin/fastmcp)
 
+[![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/gomarble-ai/google-ads-mcp-server)](https://archestra.ai/mcp-catalog/gomarble-ai__google-ads-mcp-server)
+
 **A FastMCP-powered Model Context Protocol server for Google Ads API integration with automatic OAuth 2.0 authentication**
 
 Connect Google Ads API directly to Claude Desktop and other MCP clients with seamless OAuth 2.0 authentication, automatic token refresh, GAQL querying, and keyword research capabilities.
