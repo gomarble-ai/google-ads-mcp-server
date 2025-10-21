@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "google-ads": {
+      "command": "/home/user/google-ads-mcp-server/.venv/bin/python",
+      "args": [
+        "/home/user/google-ads-mcp-server/server.py"
+      ]
+    }
+  }
+}
