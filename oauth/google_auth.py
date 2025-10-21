@@ -41,32 +41,120 @@ def format_customer_id(customer_id: str) -> str:
     customer_id = ''.join(char for char in customer_id if char.isdigit())
     return customer_id.zfill(10)
 
-def get_oauth_credentials():
-    """Get and refresh OAuth user credentials using cohnen's approach."""
-    if not GOOGLE_ADS_OAUTH_CONFIG_PATH:
+def create_client_config_from_env() -> Dict[str, Any]:
+    """Create OAuth client configuration from environment variables.
+
+    This function creates a client configuration dictionary from GOOGLE_ADS_CLIENT_ID
+    and GOOGLE_ADS_CLIENT_SECRET environment variables, matching the format of
+    Google Cloud Console's downloaded client_secret.json file.
+
+    Returns:
+        Dict containing the OAuth client configuration
+
+    Raises:
+        ValueError: If required environment variables are missing
+    """
+    if not GOOGLE_ADS_CLIENT_ID or not GOOGLE_ADS_CLIENT_SECRET:
         raise ValueError(
-            "GOOGLE_ADS_OAUTH_CONFIG_PATH environment variable not set. "
-            "Please set it to point to your OAuth credentials JSON file."
+            "GOOGLE_ADS_CLIENT_ID and GOOGLE_ADS_CLIENT_SECRET must be set "
+            "when not using a client secret JSON file"
+        )
+
+    return {
+        "installed": {
+            "client_id": GOOGLE_ADS_CLIENT_ID,
+            "client_secret": GOOGLE_ADS_CLIENT_SECRET,
+            "redirect_uris": ["http://localhost"],
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs"
+        }
+    }
+
+def get_oauth_credentials():
+    """Get and refresh OAuth user credentials.
+
+    Supports two configuration methods:
+
+    OPTION 1: Use a client_secret.json file downloaded from Google Cloud Console
+        Set GOOGLE_ADS_CREDENTIALS_PATH or GOOGLE_ADS_OAUTH_CONFIG_PATH to the path
+        of your client_secret JSON file.
+
+    OPTION 2: Use environment variables
+        Set GOOGLE_ADS_CLIENT_ID and GOOGLE_ADS_CLIENT_SECRET manually.
+        Set GOOGLE_ADS_CREDENTIALS_PATH to where tokens should be saved.
+
+    Returns:
+        Credentials object for Google Ads API authentication
+    """
+    # Support both old and new environment variable names
+    config_path = GOOGLE_ADS_CREDENTIALS_PATH or GOOGLE_ADS_OAUTH_CONFIG_PATH
+
+    creds = None
+    client_config = None
+    token_path = None
+
+    # Determine which option to use
+    if config_path and os.path.exists(config_path):
+        # OPTION 1: Load from existing JSON file
+        logger.info(f"Loading OAuth configuration from file: {config_path}")
+
+        try:
+            with open(config_path, 'r') as f:
+                file_content = json.load(f)
+
+            # Check if this is a saved token file or a client secret file
+            if 'refresh_token' in file_content or 'access_token' in file_content:
+                # This is a saved token file
+                logger.info("File appears to be a saved token file")
+                token_path = config_path
+                # We'll need client config from env vars or error
+                if GOOGLE_ADS_CLIENT_ID and GOOGLE_ADS_CLIENT_SECRET:
+                    client_config = create_client_config_from_env()
+                else:
+                    logger.warning("Token file exists but no client credentials available for refresh")
+            else:
+                # This is a client secret file
+                logger.info("File appears to be a client secret file")
+                client_config = file_content
+                # Store tokens in the same directory
+                config_dir = os.path.dirname(os.path.abspath(config_path))
+                token_path = os.path.join(config_dir, 'google_ads_token.json')
+        except json.JSONDecodeError:
+            raise ValueError(f"Invalid JSON file: {config_path}")
+        except Exception as e:
+            raise ValueError(f"Error reading config file {config_path}: {e}")
+
+    elif GOOGLE_ADS_CLIENT_ID and GOOGLE_ADS_CLIENT_SECRET:
+        # OPTION 2: Use environment variables
+        logger.info("Using OAuth credentials from environment variables")
+        client_config = create_client_config_from_env()
+
+        # Determine token storage path
+        if config_path:
+            token_path = config_path
+        else:
+            # Default to current directory
+            token_path = os.path.join(os.getcwd(), 'google_ads_token.json')
+
+        logger.info(f"Tokens will be saved to: {token_path}")
+
+    else:
+        raise ValueError(
+            "OAuth configuration missing. Please set either:\n"
+            "  OPTION 1: GOOGLE_ADS_CREDENTIALS_PATH pointing to client_secret.json\n"
+            "  OPTION 2: GOOGLE_ADS_CLIENT_ID and GOOGLE_ADS_CLIENT_SECRET environment variables"
         )
     
-    if not os.path.exists(GOOGLE_ADS_OAUTH_CONFIG_PATH):
-        raise FileNotFoundError(f"OAuth config file not found: {GOOGLE_ADS_OAUTH_CONFIG_PATH}")
-    
-    creds = None
-    
-    # Path to store the token (same directory as OAuth config)
-    config_dir = os.path.dirname(os.path.abspath(GOOGLE_ADS_OAUTH_CONFIG_PATH))
-    token_path = os.path.join(config_dir, 'google_ads_token.json')
-    
     # Load existing token if it exists
-    if os.path.exists(token_path):
+    if token_path and os.path.exists(token_path):
         try:
             logger.info(f"Loading existing OAuth token from {token_path}")
             creds = Credentials.from_authorized_user_file(token_path, SCOPES)
         except Exception as e:
             logger.warning(f"Error loading existing token: {e}")
             creds = None
-    
+
     # Check if credentials are valid
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
@@ -80,20 +168,19 @@ def get_oauth_credentials():
             except Exception as e:
                 logger.error(f"Unexpected error refreshing token: {e}")
                 raise
-        
+
         # Need new credentials - run OAuth flow
         if not creds:
+            if not client_config:
+                raise ValueError("Client configuration not available for OAuth flow")
+
             logger.info("Starting OAuth authentication flow")
-            
+
             try:
-                # Load client configuration
-                with open(GOOGLE_ADS_OAUTH_CONFIG_PATH, 'r') as f:
-                    client_config = json.load(f)
-                
-                # Create flow
+                # Create flow from client config (either from file or env vars)
                 flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
-                
-                # Run OAuth flow with automatic local server (cohnen's approach)
+
+                # Run OAuth flow with automatic local server
                 try:
                     creds = flow.run_local_server(port=0)
                     logger.info("OAuth flow completed successfully using local server")
@@ -101,22 +188,24 @@ def get_oauth_credentials():
                     logger.warning(f"Local server failed: {e}, falling back to console")
                     creds = flow.run_console()
                     logger.info("OAuth flow completed successfully using console")
-                
+
             except Exception as e:
                 logger.error(f"OAuth flow failed: {e}")
                 raise
-        
+
         # Save the credentials
-        if creds:
+        if creds and token_path:
             try:
                 logger.info(f"Saving credentials to {token_path}")
-                os.makedirs(os.path.dirname(token_path), exist_ok=True)
+                token_dir = os.path.dirname(token_path)
+                if token_dir:
+                    os.makedirs(token_dir, exist_ok=True)
                 with open(token_path, 'w') as f:
                     f.write(creds.to_json())
                 logger.info("Credentials saved successfully")
             except Exception as e:
                 logger.warning(f"Could not save credentials: {e}")
-    
+
     return creds
 
 def get_headers_with_auto_token() -> Dict[str, str]:
