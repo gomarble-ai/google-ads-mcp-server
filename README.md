@@ -582,3 +582,8 @@ SOFTWARE.
 **Made with ❤️ for the MCP community**
 
 *Connect your Google Ads data directly to AI assistants and unlock powerful advertising insights through natural language conversations.*
+
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/gomarble-ai-google-ads-mcp-server).
+
